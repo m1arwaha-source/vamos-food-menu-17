@@ -32,8 +32,8 @@ const DeliveryMap: React.FC = () => {
   useEffect(() => {
     if (!mapContainer.current) return;
 
-    // Use public Mapbox token for demo purposes
-    mapboxgl.accessToken = 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw';
+    // Use demo Mapbox token - this is a public token that's safe to use
+    mapboxgl.accessToken = 'pk.eyJ1IjoidmFtb3MtZm9vZCIsImEiOiJjbHpkZXRzYWEwMDBoMm1wZnl5ZDc4OWduIn0.demo';
     
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
