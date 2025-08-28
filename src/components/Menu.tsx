@@ -121,7 +121,7 @@ const Menu: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
-      <h2 className="text-3xl font-bold text-center mb-8">منيو الأطعمة</h2>
+      <h2 className="text-3xl font-bold text-center mb-8">المنيو</h2>
       
       {/* Category Tabs */}
       <div className="flex flex-wrap justify-center gap-2 mb-8">
