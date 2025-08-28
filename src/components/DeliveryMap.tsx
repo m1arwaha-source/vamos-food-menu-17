@@ -39,15 +39,25 @@ const DeliveryMap: React.FC = () => {
       container: mapContainer.current,
       style: 'mapbox://styles/mapbox/streets-v12',
       center: [restaurantLng, restaurantLat],
-      zoom: 13,
-      maxZoom: 16,
-      minZoom: 12,
-      language: 'ar' // Set Arabic language for map labels
+      zoom: 14,
+      maxZoom: 17,
+      minZoom: 13,
+      language: 'ar', // Set Arabic language for map labels
+      dragPan: false, // Disable panning
+      scrollZoom: true, // Allow zoom but with restrictions
+      boxZoom: false,
+      dragRotate: false,
+      keyboard: false,
+      doubleClickZoom: false,
+      touchZoomRotate: {
+        around: 'center'
+      }
     });
 
-    // Add restaurant marker
+    // Add large restaurant marker (pin)
     new mapboxgl.Marker({
-      color: '#FFD700'
+      color: '#FFD700',
+      scale: 1.5 // Make the pin larger
     })
     .setLngLat([restaurantLng, restaurantLat])
     .addTo(map.current);
@@ -131,19 +141,40 @@ const DeliveryMap: React.FC = () => {
       });
     });
 
-    // Restrict pan to delivery area
-    map.current.on('move', () => {
+    // Restrict zoom based on location relative to delivery area
+    map.current.on('zoom', () => {
       if (!map.current) return;
       
       const center = map.current.getCenter();
-      if (!isWithinDeliveryRadius(center.lat, center.lng)) {
-        // If center moves outside delivery radius, reset to restaurant location
+      const zoom = map.current.getZoom();
+      
+      // If trying to zoom on area outside delivery radius, limit zoom level
+      if (!isWithinDeliveryRadius(center.lat, center.lng) && zoom > 14) {
+        map.current.setZoom(14);
+      }
+    });
+
+    // Ensure map always stays centered on restaurant area
+    map.current.on('moveend', () => {
+      if (!map.current) return;
+      
+      const center = map.current.getCenter();
+      const distance = Math.sqrt(
+        Math.pow((center.lat - restaurantLat) * 111.320, 2) +
+        Math.pow((center.lng - restaurantLng) * 111.320 * Math.cos(center.lat * Math.PI / 180), 2)
+      );
+      
+      // Keep map centered within a reasonable area around the restaurant
+      if (distance > 2) { // 2km from restaurant
         map.current.setCenter([restaurantLng, restaurantLat]);
       }
     });
 
-    // Add navigation controls
-    map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
+    // Add navigation controls (zoom only)
+    map.current.addControl(new mapboxgl.NavigationControl({
+      showCompass: false,
+      showZoom: true
+    }), 'top-right');
 
     return () => {
       map.current?.remove();
