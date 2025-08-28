@@ -1,11 +1,19 @@
 import React, { useEffect, useRef } from 'react';
 import { MapPin, Clock } from 'lucide-react';
-import mapboxgl from 'mapbox-gl';
-import 'mapbox-gl/dist/mapbox-gl.css';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
+// Fix for default markers in Leaflet
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+});
 
 const DeliveryMap: React.FC = () => {
   const mapContainer = useRef<HTMLDivElement>(null);
-  const map = useRef<mapboxgl.Map | null>(null);
+  const map = useRef<L.Map | null>(null);
   
   // Restaurant location coordinates
   const restaurantLat = 15.4083286;
@@ -31,115 +39,83 @@ const DeliveryMap: React.FC = () => {
 
   useEffect(() => {
     if (!mapContainer.current) return;
-
-    // Use a valid public Mapbox token
-    mapboxgl.accessToken = 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw';
     
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/streets-v12',
-      center: [restaurantLng, restaurantLat],
+    // Initialize map with OpenStreetMap tiles (completely free)
+    map.current = L.map(mapContainer.current, {
+      center: [restaurantLat, restaurantLng],
       zoom: 14,
       maxZoom: 17,
       minZoom: 13,
-      language: 'ar', // Set Arabic language for map labels
-      dragPan: false, // Disable panning
-      scrollZoom: true, // Allow zoom but with restrictions
+      dragging: false, // Disable panning
+      scrollWheelZoom: true, // Allow zoom but with restrictions
       boxZoom: false,
-      dragRotate: false,
       keyboard: false,
       doubleClickZoom: false,
-      touchZoomRotate: {
-        around: 'center'
-      }
+      touchZoom: true,
+      zoomControl: true
     });
 
-    // Add large restaurant marker (pin)
-    new mapboxgl.Marker({
-      color: '#FFD700',
-      scale: 1.5 // Make the pin larger
-    })
-    .setLngLat([restaurantLng, restaurantLat])
-    .addTo(map.current);
+    // Add OpenStreetMap tile layer (free)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors',
+      maxZoom: 19
+    }).addTo(map.current);
+
+    // Create custom restaurant icon (golden pin)
+    const restaurantIcon = L.divIcon({
+      className: 'custom-restaurant-marker',
+      html: `
+        <div style="
+          background-color: #FFD700;
+          width: 30px;
+          height: 30px;
+          border-radius: 50% 50% 50% 0;
+          transform: rotate(-45deg);
+          border: 3px solid #FFA500;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        ">
+          <div style="
+            color: #8B4513;
+            font-size: 14px;
+            font-weight: bold;
+            transform: rotate(45deg);
+          ">🍔</div>
+        </div>
+      `,
+      iconSize: [30, 30],
+      iconAnchor: [15, 30]
+    });
+
+    // Add restaurant marker
+    const restaurantMarker = L.marker([restaurantLat, restaurantLng], {
+      icon: restaurantIcon
+    }).addTo(map.current);
+
+    restaurantMarker.bindPopup(`
+      <div style="text-align: center; direction: rtl;">
+        <strong>🍔 Vamos Food</strong><br/>
+        <span style="color: #666;">المطعم الرئيسي</span>
+      </div>
+    `);
 
     // Add delivery radius circle
-    map.current.on('load', () => {
-      if (!map.current) return;
+    const deliveryCircle = L.circle([restaurantLat, restaurantLng], {
+      color: '#FFD700',
+      fillColor: '#FFD700',
+      fillOpacity: 0.1,
+      radius: deliveryRadius * 1000, // Convert km to meters
+      weight: 3
+    }).addTo(map.current);
 
-      // Set Arabic language for the map
-      map.current.setLayoutProperty('country-label', 'text-field', [
-        'coalesce',
-        ['get', 'name_ar'],
-        ['get', 'name_en'],
-        ['get', 'name']
-      ]);
-      
-      map.current.setLayoutProperty('state-label', 'text-field', [
-        'coalesce',
-        ['get', 'name_ar'],
-        ['get', 'name_en'],
-        ['get', 'name']
-      ]);
-      
-      map.current.setLayoutProperty('settlement-label', 'text-field', [
-        'coalesce',
-        ['get', 'name_ar'],
-        ['get', 'name_en'],
-        ['get', 'name']
-      ]);
-
-      // Create circle coordinates
-      const createCircle = (center: [number, number], radiusKm: number, points = 64) => {
-        const coords = [];
-        const distanceX = radiusKm / (111.320 * Math.cos(center[1] * Math.PI / 180));
-        const distanceY = radiusKm / 110.540;
-
-        for (let i = 0; i < points; i++) {
-          const theta = (i / points) * (2 * Math.PI);
-          const x = distanceX * Math.cos(theta);
-          const y = distanceY * Math.sin(theta);
-          coords.push([center[0] + x, center[1] + y]);
-        }
-        coords.push(coords[0]); // Close the circle
-        return coords;
-      };
-
-      const circleCoords = createCircle([restaurantLng, restaurantLat], deliveryRadius);
-
-      // Add circle source and layer
-      map.current.addSource('delivery-radius', {
-        type: 'geojson',
-        data: {
-          type: 'Feature',
-          geometry: {
-            type: 'Polygon',
-            coordinates: [circleCoords]
-          },
-          properties: {}
-        }
-      });
-
-      map.current.addLayer({
-        id: 'delivery-radius-fill',
-        type: 'fill',
-        source: 'delivery-radius',
-        paint: {
-          'fill-color': '#FFD700',
-          'fill-opacity': 0.1
-        }
-      });
-
-      map.current.addLayer({
-        id: 'delivery-radius-border',
-        type: 'line',
-        source: 'delivery-radius',
-        paint: {
-          'line-color': '#FFD700',
-          'line-width': 3,
-          'line-opacity': 0.8
-        }
-      });
-    });
+    deliveryCircle.bindPopup(`
+      <div style="text-align: center; direction: rtl;">
+        <strong>منطقة التوصيل المجاني</strong><br/>
+        <span style="color: #666;">نصف قطر 3 كم</span>
+      </div>
+    `);
 
     // Restrict zoom based on location relative to delivery area
     map.current.on('zoom', () => {
@@ -166,18 +142,15 @@ const DeliveryMap: React.FC = () => {
       
       // Keep map centered within a reasonable area around the restaurant
       if (distance > 2) { // 2km from restaurant
-        map.current.setCenter([restaurantLng, restaurantLat]);
+        map.current.setView([restaurantLat, restaurantLng], map.current.getZoom());
       }
     });
 
-    // Add navigation controls (zoom only)
-    map.current.addControl(new mapboxgl.NavigationControl({
-      showCompass: false,
-      showZoom: true
-    }), 'top-right');
-
     return () => {
-      map.current?.remove();
+      if (map.current) {
+        map.current.remove();
+        map.current = null;
+      }
     };
   }, []);
 
@@ -193,7 +166,7 @@ const DeliveryMap: React.FC = () => {
         <p className="text-foreground font-medium">التوصيل مجاني داخل دائرة 3 كم من المطعم</p>
       </div>
 
-      {/* Interactive Mapbox with delivery zone */}
+      {/* Interactive OpenStreetMap with delivery zone */}
       <div className="relative rounded-lg overflow-hidden shadow-lg border-4 border-secondary">
         <div ref={mapContainer} className="w-full h-[500px]" />
         
