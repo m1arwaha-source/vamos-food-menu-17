@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { MapPin, Clock } from 'lucide-react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -6,7 +6,6 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 const DeliveryMap: React.FC = () => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
-  const [mapboxToken, setMapboxToken] = useState('');
   
   // Restaurant location coordinates
   const restaurantLat = 15.4083286;
@@ -31,9 +30,10 @@ const DeliveryMap: React.FC = () => {
   };
 
   useEffect(() => {
-    if (!mapContainer.current || !mapboxToken) return;
+    if (!mapContainer.current) return;
 
-    mapboxgl.accessToken = mapboxToken;
+    // Use public Mapbox token for demo purposes
+    mapboxgl.accessToken = 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw';
     
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
@@ -41,7 +41,8 @@ const DeliveryMap: React.FC = () => {
       center: [restaurantLng, restaurantLat],
       zoom: 13,
       maxZoom: 16,
-      minZoom: 12
+      minZoom: 12,
+      language: 'ar' // Set Arabic language for map labels
     });
 
     // Add restaurant marker
@@ -54,6 +55,28 @@ const DeliveryMap: React.FC = () => {
     // Add delivery radius circle
     map.current.on('load', () => {
       if (!map.current) return;
+
+      // Set Arabic language for the map
+      map.current.setLayoutProperty('country-label', 'text-field', [
+        'coalesce',
+        ['get', 'name_ar'],
+        ['get', 'name_en'],
+        ['get', 'name']
+      ]);
+      
+      map.current.setLayoutProperty('state-label', 'text-field', [
+        'coalesce',
+        ['get', 'name_ar'],
+        ['get', 'name_en'],
+        ['get', 'name']
+      ]);
+      
+      map.current.setLayoutProperty('settlement-label', 'text-field', [
+        'coalesce',
+        ['get', 'name_ar'],
+        ['get', 'name_en'],
+        ['get', 'name']
+      ]);
 
       // Create circle coordinates
       const createCircle = (center: [number, number], radiusKm: number, points = 64) => {
@@ -125,31 +148,7 @@ const DeliveryMap: React.FC = () => {
     return () => {
       map.current?.remove();
     };
-  }, [mapboxToken]);
-
-  if (!mapboxToken) {
-    return (
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <h2 className="text-3xl font-bold text-center mb-6">منطقة التوصيل المجاني</h2>
-        
-        <div className="mb-6 text-center">
-          <div className="inline-flex items-center gap-2 bg-yellowLight px-6 py-3 rounded-lg mb-4">
-            <MapPin className="w-6 h-6 text-secondary" />
-            <span className="font-bold text-lg text-foreground">يرجى إدخال رمز Mapbox للعرض التفاعلي</span>
-          </div>
-          <p className="text-foreground font-medium mb-4">
-            للحصول على رمز Mapbox، يرجى زيارة <a href="https://mapbox.com" target="_blank" rel="noopener noreferrer" className="text-secondary underline">mapbox.com</a>
-          </p>
-          <input
-            type="text"
-            placeholder="أدخل رمز Mapbox العام هنا"
-            className="w-full max-w-md px-4 py-2 border rounded-lg text-center"
-            onChange={(e) => setMapboxToken(e.target.value)}
-          />
-        </div>
-      </div>
-    );
-  }
+  }, []);
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
