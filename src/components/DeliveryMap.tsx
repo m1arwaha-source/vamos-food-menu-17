@@ -55,11 +55,18 @@ const DeliveryMap: React.FC = () => {
       zoomControl: true
     });
 
-    // Add OpenStreetMap tile layer (free)
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors',
-      maxZoom: 19
+    // Add Google Maps tile layer (better coverage for Yemen)
+    L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+      attribution: '© Google Maps',
+      maxZoom: 20,
+      subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
     }).addTo(map.current);
+
+    // Alternative: You can also try satellite view
+    // L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+    //   attribution: '© Google Satellite',
+    //   maxZoom: 20
+    // }).addTo(map.current);
 
     // Create custom restaurant icon (golden pin)
     const restaurantIcon = L.divIcon({
